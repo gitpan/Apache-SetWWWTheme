@@ -5,3 +5,7 @@ Revision history for Perl extension SetWWWTheme.
 
 1.00  Wed Sep 15 18:11:11 1999
 	- first release
+
+1.01  Sun Jan 30 22:32:02 2000
+	- added support for @MORELINKSTITLE directive
+	- general cleanups

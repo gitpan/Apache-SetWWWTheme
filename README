@@ -3,11 +3,11 @@ for HTML pages, and it also makes a sidebar for the page.
 HTML::WWWTheme, the Apache webserver, and mod_perl are required to run
 this.  For more information, see GETTING_STARTED.
 
-Please report any bugs/suggestions to <chogan@uvphys.phys.uvic.ca>
+Please report any bugs/suggestions to <chogan@uvastro.phys.uvic.ca>
 
-Copyright (C) 1999 Chad Hogan <chogan@uvphys.phys.uvic.ca>
+Copyright (C) 2000 Chad Hogan <chogan@uvastro.phys.uvic.ca>
 	           
-Copyright (C) 1999 Joint Astronomy Centre
+Copyright (C) 2000 Joint Astronomy Centre
 
 
 All rights reserved.  This program is free software.  you can

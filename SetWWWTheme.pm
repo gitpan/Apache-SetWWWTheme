@@ -1,7 +1,7 @@
 # SetWWWTheme.pm - perl source for Apache::SetWWWTheme
 # 
-# Copyright (C) 1999 Chad Hogan <chogan@uvphys.phys.uvic.ca>
-# Copyright (C) 1999 Joint Astronomy Centre
+# Copyright (C) 2000 Chad Hogan <chogan@uvastro.phys.uvic.ca>
+# Copyright (C) 2000 Joint Astronomy Centre
 #
 # All rights reserved.
 # 
@@ -31,7 +31,7 @@ use Apache::Constants ':common';
 use Apache::File ();
 use HTML::WWWTheme;
 
-$VERSION = '1.00';
+$VERSION = '1.01';
 
 ##################################################
 my $r;                                           # request object variable
@@ -59,6 +59,7 @@ my $allowsidebarmod;                             # sidebar modification variable
 my $sidebartop;                                  #
 my $sidebarmenutitle;                            #
 my @sidebarmenulinks;                            #
+my $morelinkstitle;
 my $sidebarsearchbox;                            #
 my $sidebarcolor;                                # 
 my $searchtemplate;                              # a search template
@@ -121,6 +122,7 @@ sub handler
     undef $sidebarmenutitle;
     undef @sidebarmenulinks;
     undef $sidebarsearchbox;
+    undef $morelinkstitle;
     undef $sidebarcolor;
     undef $searchtemplate;
 
@@ -223,6 +225,7 @@ sub handler
 	    ( /\@SIDEBARSEARCHBOX\s*=\s*(.*?);/s ) && ($sidebarsearchbox = $1);	 
 	    ( /\@SIDEBARCOLOR\s*=\s*(.*?);/s )     && ($sidebarcolor = $1);
 	    ( /\@SEARCHTEMPLATE\s*=\s*(.*?);/s)    && ($searchtemplate = $1);
+	    ( /\@MORELINKSTITLE\s*=\s*(.*?);/s)    && ($morelinkstitle = $1);
 	  }
 	
 	# Now we've got all the configuration we need.  It's time to put things into action!
@@ -270,8 +273,8 @@ sub handler
 	  "<!-- BEGINNING OF APACHE GENERATED HTML\n" . 
 	  "***************************************\n" .
 	  "This is Apache::SetWWWTheme\n" .
-	  "Copyright (C) 1999 Chad Hogan <chogan\@uvphys.phys.uvic.ca>\n" .
-	  "Copyright (C) 1999 Joint Astronomy Centre\n" .
+	  "Copyright (C) 2000 Chad Hogan <chogan\@uvastro.phys.uvic.ca>\n" .
+	  "Copyright (C) 2000 Joint Astronomy Centre\n" .
 	  "All Rights Reserved.\n" .
 	  "Apache::SetWWWTheme is free software, licensed under the GNU General\n" .
 	  "Public License as published by the Free Software Foundation.  Please\n" .
@@ -367,6 +370,7 @@ sub Get_ServerDefaults
 	( /\@SIDEBARSEARCHBOX\s*?=\s*?(.*?);/s ) && ($1) && ($sidebarsearchbox = $1);
 	( /\@SIDEBARCOLOR\s*?=\s*?(.*?);/s )     && ($sidebarcolor = $1);
 	( /\@SEARCHTEMPLATE\s*?=\s*?(.*?);/s )   && ($searchtemplate = $1);
+	( /\@MORELINKSTITLE\s*?=\s*?(.*?);/s )   && ($morelinkstitle = $1);
 
     }
     close CONFIG;
@@ -428,6 +432,7 @@ sub Get_LocalDefaults
 	    ( /\@SIDEBARSEARCHBOX\s*=\s*(.*?);/s ) && ($sidebarsearchbox = $1);	
 	    ( /\@SEARCHTEMPLATE\s*=\s*(.*?);/s )   && ($searchtemplate = $1);
 	    ( /\@SIDEBARCOLOR\s*=\s*(.*?);/s )     && ($sidebarcolor = $1);
+	    ( /\@MORELINKSTITLE\s*=\s*(.*?);/s )   && ($morelinkstitle = $1);
 	  }
 	
       }
@@ -461,7 +466,8 @@ sub MakeBody
     
     $Theme->SetSideBarMenuLinks(\@sidebarmenulinks) if (@sidebarmenulinks);
     $Theme->SetSideBarMenuTitle($sidebarmenutitle)  if ($sidebarmenutitle);
-    
+    $Theme->SetMoreLinksTitle($morelinkstitle)      if ($morelinkstitle);
+
     return $Theme->MakeHeader();
     
 }
@@ -486,11 +492,11 @@ Within the httpd.conf or other apache configuration file:
 
 =head1 REQUIREMENTS
 
-This module requires the Apache server, available from 
-http://www.apache.org
-
-This module also requires the B<module HTML::WWWTheme>, by Chad Hogan.
-It is available through CPAN.
+This module requires the Apache server, available from
+http://www.apache.org; the Apache B<mod_perl> module, which is
+available from http://perl.apache.org, and the B<module
+HTML::WWWTheme>, by Chad Hogan (version 1.03 or greater) which may
+be found at CPAN.
 
 =head1 DESCRIPTION
 
@@ -641,13 +647,14 @@ server's @NOSIDEBAR directives will be used. Here is an example:
  
 =item @ALLOWSIDEBARMOD
 
-Server configuration only
-This tag is set to allow users to modify the characteristics of the
-sidebar. If this flag is set to anything non-zero, users may change the
-title at the top of the sidebar with the @SIDEBARTOP directive, the
-menu title above the menulinks with @SIDEBARMENUTITLE, the menu links
-with the @SIDEBARMENULINKS. They may also then switch the sidebar
-search box on or off with @SIDEBARSEARCHBOX. Here is an example:
+Server configuration only This tag is set to allow users to modify the
+characteristics of the sidebar. If this flag is set to anything
+non-zero, users may change the title at the top of the sidebar with
+the @SIDEBARTOP directive, the menu title above the menulinks with
+@SIDEBARMENUTITLE, the menu links with the @SIDEBARMENULINKS.  Users
+are also allowed to change the title of the "More links" section to
+something else.  They may also then switch the sidebar search box on
+or off with @SIDEBARSEARCHBOX. Here is an example:
 
  @ALLOWSIDEBARMOD=0;
 
@@ -717,6 +724,12 @@ file to look for when it looks for local configuration files.  The default is
 LookAndFeelConfig.  It may be set to any valid filename.
 
  @LOCALCONFIGFILE=LOOKANDFEEL;
+
+=item @MORELINKSTITLE
+
+Valid in HTML, local configuration, and server configuration, subject
+to the server's configuration (@ALLOWSIDEBARMOD must be on in the server's
+configuration in order for local and HTML directives to be obeyed).  
 
 =item @NAVBAR
 
@@ -854,8 +867,8 @@ L<HTML::WWWTheme>
 
 =head1 AUTHOR
 
-Copyright (C) 1999 Chad Hogan (chogan@uvphys.phys.uvic.ca).  
-Copyright (C) 1999 Joint Astronomy Centre
+Copyright (C) 2000 Chad Hogan (chogan@uvastro.phys.uvic.ca).  
+Copyright (C) 2000 Joint Astronomy Centre
 
 All rights reserved.  Apache::SetWWWTheme is free software;
 you can redistribute it and/or modify it under the terms of the GNU General Public

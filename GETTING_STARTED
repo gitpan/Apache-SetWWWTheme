@@ -19,7 +19,7 @@ programs for a website with Apache::SetWWWTheme installed.
 
 HTML::WWWTheme is available from the same place you got
 Apache::SetWWWTheme.  It can be found at CPAN.  Also, if you really get
-stuck, contact me directly (chogan@uvphys.phys.uvic.ca) and I'll set you
+stuck, contact me directly (chogan@uvastro.phys.uvic.ca) and I'll set you
 up.  
 
 *********************************************
@@ -76,7 +76,7 @@ If you -really- can't get it installed, just copy the SetWWWTheme.pm file
 into a perl library directory
 (/usr/lib/perl5/site_perl/5.005/Apache/SetWWWTheme.pm for example).  It
 must be in an Apache directory, whatever the case.  If you can't get it
-installed, email me and I'll help (chogan@uvphys.phys.uvic.ca)
+installed, email me and I'll help (chogan@uvastro.phys.uvic.ca)
 
 6) Ok, we've got it in -- we just need to get it running.  Edit your
 httpd.conf file and add in the following (edited to suit your site)
@@ -125,4 +125,4 @@ respective locations.  I recommend doing this:
 	-fire up Apache and test it out!
 
 Hopefully, this should get you rolling.  If you can't figure it out, drop
-me an email (chogan@uvphys.phys.uvic.ca) and I'll help you out.  
+me an email (chogan@uvastro.phys.uvic.ca) and I'll help you out.  

@@ -4,9 +4,9 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'Apache::SetWWWTheme',
     'VERSION_FROM' => 'SetWWWTheme.pm', # finds $VERSION
-    'PREREQ_PM' => {'HTML::WWWTheme' => '0',
+    'PREREQ_PM' => {'HTML::WWWTheme' => '1.03',
                     'Apache::Constants' => '0',},
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
     ('ABSTRACT_FROM' => 'SetWWWTheme.pm',
-    'AUTHOR' => 'Chad Hogan <chogan@uvphys.phys.uvic.ca>') : ()),
+    'AUTHOR' => 'Chad Hogan <chogan@uvastro.phys.uvic.ca>') : ()),
 );
