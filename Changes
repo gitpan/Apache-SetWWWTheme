@@ -13,3 +13,8 @@ Revision history for Perl extension SetWWWTheme.
 1.02  Mon Jan 31 13:14:11 2000
 	- added support for @TOPBAR & @BOTTOMBAR
 	  at the request of the JAC
+
+1.03  Tue Feb 01 19:28:51 2000
+	- fixed bug in auto HTML cleaning routine
+	  (ie that bit that puts in missing </HEAD> tags, 
+	   etc.)

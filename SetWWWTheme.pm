@@ -31,7 +31,7 @@ use Apache::Constants ':common';
 use Apache::File ();
 use HTML::WWWTheme;
 
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 ##################################################
 my $r;                                           # request object variable
@@ -245,7 +245,19 @@ sub handler
 	# The order of these operations is quite important!  Don't mess it up without
 	# pondering it for a minute, and understanding exactly why I've done it this way.
 
-	$_ = "<HEAD>" . $_         unless (/<HEAD[^>]*?>/i);  # first put a <HEAD> on top
+
+	unless(/<HEAD[^>]*?>/i)                               # unless we find a <HEAD> tag,
+	  {
+	    if (/<HTML[^>]*?>/i)                              # if there is an <HTML> tag...
+	      {
+		s|(<HTML[^>]*?>)|$1<HEAD>|i;                  # add <HEAD> afterwards
+	      }
+	    else                                              # and if there isn't a <HTML> tag
+	      {
+		$_ = "<HEAD>" . $_;                           # put the <HEAD> tag at the very top
+	      }
+	  }
+
         s|<HEAD>|<HEAD></HEAD>|i   unless (/<\/HEAD>/i);      # close with </HEAD> if we need to
 
 	s|</HEAD>|</HEAD><BODY>|i  unless (/<BODY[^>]*?/i);   # drop in a body tag if we need to
