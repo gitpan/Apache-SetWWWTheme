@@ -31,7 +31,7 @@ use Apache::Constants ':common';
 use Apache::File ();
 use HTML::WWWTheme;
 
-$VERSION = '1.05';
+$VERSION = '1.06';
 
 ##################################################
 my $r;                                           # request object variable
@@ -59,14 +59,16 @@ my $allowsidebarmod;                             # sidebar modification variable
 my $sidebartop;                                  #
 my $sidebarmenutitle;                            #
 my @sidebarmenulinks;                            #
-my $morelinkstitle;
+my $nosidebarextras;                             #
+my $morelinkstitle;                              #
 my $sidebarsearchbox;                            #
-my $sidebarcolor;                                # 
+my $sidebarcolor;                                #
+my $sidebarwidth;                                # 
 my $searchtemplate;                              # a search template
-my $topbar;
-my $bottombar;
-my @topbottomlinks;
-my $filename;
+my $topbar;                                      #
+my $bottombar;                                   #
+my @topbottomlinks;                              #
+my $filename;                                    #
 my $printable;                                   #
 my $printabletag = "printable";                  # what we tack on for the QUERY_STRING GET data
 my $printableuri;                                #
@@ -129,8 +131,10 @@ sub handler
     undef $sidebarmenutitle;
     undef @sidebarmenulinks;
     undef $sidebarsearchbox;
+    undef $nosidebarextras;
     undef $morelinkstitle;
     undef $sidebarcolor;
+    undef $sidebarwidth;
     undef $searchtemplate;
     undef $topbar;
     undef $bottombar;
@@ -208,27 +212,28 @@ sub handler
 	# this block looks through the HTML to find our comment block that contains directives
 	# for controlling the "Look and Feel" of the pages. 
 	
-	(/\@NAVBAR\s*=\s*(\S+?);/)    && ($usenavbar = $1);
-	(/\@TOPBAR\s*=\s*(\S+?);/)    && ($topbar = $1);
-	(/\@BOTTOMBAR\s*=\s*(\S+?);/) && ($bottombar = $1);
+	(/\@NAVBAR\s*=\s*(.*?[^\\]);/)    && ($usenavbar = $1);
+	(/\@TOPBAR\s*=\s*(.*?[^\\]);/)    && ($topbar = $1);
+	(/\@BOTTOMBAR\s*=\s*(.*?[^\\]);/) && ($bottombar = $1);
 
 	# this is the part where we let the HTML override the server-set defaults
 	# A few things we may or may not be able to change (like the BGCOLOR)
 
-	( /\@NEXTLINK\s*?=\s*?(.*?);/s )       && ($nextlink  = $1);
-	( /\@LASTLINK\s*?=\s*?(.*?);/s )       && ($lastlink  = $1);	
-	( /\@UPLINK\s*?=\s*?(.*?);/s   )       && ($uplink    = $1);
-	( /\@INFO\s*?=\s*?(.*?);/s     )       && (@infolinks = split(',',$1));
-	( /\@TOPBOTTOMLINKS\s*?=\s*?(.*?);/s ) && (@topbottomlinks = split(',',$1));
+	( /\@NEXTLINK\s*?=\s*?(.*?[^\\]);/s )        && ($nextlink  = $1);
+	( /\@LASTLINK\s*?=\s*?(.*?[^\\]);/s )        && ($lastlink  = $1);	
+	( /\@UPLINK\s*?=\s*?(.*?[^\\]);/s   )        && ($uplink    = $1);
+	( /\@INFO\s*?=\s*?(.*?[^\\]);/s     )        && (@infolinks = split(',',$1));
+	( /\@TOPBOTTOMLINKS\s*?=\s*?(.*?[^\\]);/s )  && (@topbottomlinks = split(',',$1));
+	( /\@NOSIDEBAREXTRAS\s*?=\s*?(.*?[^\\]);/s ) && ($nosidebarextras = $1);
 
-	($allowsidebartoggle) && ( /\@NOSIDEBAR\s*?=\s*?(.*?);/s) && ($nosidebar = $1);
+	($allowsidebartoggle) && ( /\@NOSIDEBAR\s*?=\s*?(.*?[^\\]);/s) && ($nosidebar = $1);
 
 	# these next two are relics.  They are from the days before we had an "allowbodymod" directive
 	# we'll support them for a bit.  They might even be useful on their own.. we'll see.
 	# Do you have an opinion one way or another?  Email me: chogan@uvastro.phys.uvic.ca
 
-	($allowBGCOLOR)    && ( /\@BGCOLOR\s*?=\s*?(.*?);/s   ) && ($BGCOLOR = $1);
-	($allowbgpicture)  && ( /\@BGPICTURE\s*?=\s*?(.*?);/s ) && ($bgpicture = $1);
+	($allowBGCOLOR)    && ( /\@BGCOLOR\s*?=\s*?(.*?[^\\]);/s   ) && ($BGCOLOR = $1);
+	($allowbgpicture)  && ( /\@BGPICTURE\s*?=\s*?(.*?[^\\]);/s ) && ($bgpicture = $1);
 
 	if ($allowbodymod)    # here is where we do all of our body modification if allowed
 	  {
@@ -236,21 +241,21 @@ sub handler
 	    # for commented directives.  Unless they're overridden, we want to preserve the
 	    # look of a legacy HTML file (IE one that wasn't written with this module in mind).
 
-	    /<BODY[^>]+?BGCOLOR=(.*?)[\s|>]/is     && ($BGCOLOR = $1)   && $BGCOLOR   =~ s/\"//g; 
-	    /<BODY[^>]+?BACKGROUND=(.*?)[\s|>]/is  && ($bgpicture = $1) && $bgpicture =~ s/\"//g; 
-	    /<BODY[^>]+?ALINK=(.*?)[\s|>]/is       && ($alink = $1)     && $alink     =~ s/\"//g; 
-	    /<BODY[^>]+?LINK=(.*?)[\s|>]/is        && ($link = $1)      && $link      =~ s/\"//g; 
-	    /<BODY[^>]+?TEXT=(.*?)[\s|>]/is        && ($text = $1)      && $text      =~ s/\"//g; 
-	    /<BODY[^>]+?VLINK=(.*?)[\s|>]/is       && ($vlink = $1)     && $vlink     =~ s/\"//g; 
+	    /<BODY[^>]+?BGCOLOR=(.*?[^\\])[\s|>]/is     && ($BGCOLOR = $1)   && $BGCOLOR   =~ s/\"//g; 
+	    /<BODY[^>]+?BACKGROUND=(.*?[^\\])[\s|>]/is  && ($bgpicture = $1) && $bgpicture =~ s/\"//g; 
+	    /<BODY[^>]+?ALINK=(.*?[^\\])[\s|>]/is       && ($alink = $1)     && $alink     =~ s/\"//g; 
+	    /<BODY[^>]+?LINK=(.*?[^\\])[\s|>]/is        && ($link = $1)      && $link      =~ s/\"//g; 
+	    /<BODY[^>]+?TEXT=(.*?[^\\])[\s|>]/is        && ($text = $1)      && $text      =~ s/\"//g; 
+	    /<BODY[^>]+?VLINK=(.*?[^\\])[\s|>]/is       && ($vlink = $1)     && $vlink     =~ s/\"//g; 
 
 	    # now we're using the directives in the comment tags.  These override BODY settings.
 
-	    /\@BGCOLOR\s*=\s*(.*?);/s        && ($BGCOLOR = $1);
-	    /\@BGPICTURE\s*=\s*(.*?);/s      && ($bgpicture = $1);
-	    /\@ALINK\s*=\s*(.*?);/s          && ($alink = $1);
-	    /\@LINK\s*=\s*(.*?);/s           && ($link = $1);
-	    /\@TEXT\s*=\s*(.*?);/s           && ($text = $1);
-	    /\@VLINK\s*=\s*(.*?);/s          && ($vlink = $1);
+	    /\@BGCOLOR\s*=\s*(.*?[^\\]);/s        && ($BGCOLOR = $1);
+	    /\@BGPICTURE\s*=\s*(.*?[^\\]);/s      && ($bgpicture = $1);
+	    /\@ALINK\s*=\s*(.*?[^\\]);/s          && ($alink = $1);
+	    /\@LINK\s*=\s*(.*?[^\\]);/s           && ($link = $1);
+	    /\@TEXT\s*=\s*(.*?[^\\]);/s           && ($text = $1);
+	    /\@VLINK\s*=\s*(.*?[^\\]);/s          && ($vlink = $1);
 	  }
 	    
 	# These are all of the sidebar modifications that may be performed, if allowed.
@@ -258,13 +263,14 @@ sub handler
 	if ($allowsidebarmod)
 	  {
 	    
-	    ( /\@SIDEBARTOP\s*=\s*(.*?);/s )       && ($sidebartop = $1);
-	    ( /\@SIDEBARMENUTITLE\s*=\s*(.*?);/s ) && ($sidebarmenutitle = $1);
-	    ( /\@SIDEBARMENULINKS\s*=\s*(.*?);/s ) && (@sidebarmenulinks = split(',',$1));
-	    ( /\@SIDEBARSEARCHBOX\s*=\s*(.*?);/s ) && ($sidebarsearchbox = $1);	 
-	    ( /\@SIDEBARCOLOR\s*=\s*(.*?);/s )     && ($sidebarcolor = $1);
-	    ( /\@SEARCHTEMPLATE\s*=\s*(.*?);/s)    && ($searchtemplate = $1);
-	    ( /\@MORELINKSTITLE\s*=\s*(.*?);/s)    && ($morelinkstitle = $1);
+	    ( /\@SIDEBARTOP\s*=\s*(.*?[^\\]);/s )       && ($sidebartop = $1);
+	    ( /\@SIDEBARMENUTITLE\s*=\s*(.*?[^\\]);/s ) && ($sidebarmenutitle = $1);
+	    ( /\@SIDEBARMENULINKS\s*=\s*(.*?[^\\]);/s ) && (@sidebarmenulinks = split(',',$1));
+	    ( /\@SIDEBARSEARCHBOX\s*=\s*(.*?[^\\]);/s ) && ($sidebarsearchbox = $1);	 
+	    ( /\@SIDEBARCOLOR\s*=\s*(.*?[^\\]);/s )     && ($sidebarcolor = $1);
+	    ( /\@SIDEBARWIDTH\s*=\s*(.*?[^\\]);/s )     && ($sidebarwidth = $1);
+	    ( /\@SEARCHTEMPLATE\s*=\s*(.*?[^\\]);/s)    && ($searchtemplate = $1);
+	    ( /\@MORELINKSTITLE\s*=\s*(.*?[^\\]);/s)    && ($morelinkstitle = $1);
 	  }
 	
 	# Now we've got all the configuration we need.  It's time to put things into action!
@@ -336,12 +342,30 @@ sub handler
 
 	if ($topbar)                                    # if we have a top links bar, we'll put it in
 	  {
+	    # first, we'll clean up the vars and remove all escapes before semicolons.
+	    
+	    my $marker;
+	    for ($marker = 0; $marker <= $#topbottomlinks; $marker++)
+	      {
+		$topbottomlinks[$marker] =~ s/\\;/;/;
+	      }
+	    
+	    # now that our vars are clean, we'll use them.
+
 	    $Theme->SetTopBottomLinks(\@topbottomlinks) if (@topbottomlinks);
 	    $newbody .= $Theme->MakeTopBottomBar();
 	  }
 
 	if ($usenavbar)                                      # This puts the top/bottom nav bars into the
 	  {                                                  # newly-created HTML
+	    # first we have to remove the escapes from our strings.
+
+	    $nextlink =~ s/\\;/;/g;
+	    $lastlink =~ s/\\;/;/g;
+            $uplink   =~ s/\\;/;/g;
+
+            # now we'll do our stuff.
+
 	    $Theme->SetNextLink($nextlink) if $nextlink;
 	    $Theme->SetLastLink($lastlink) if $lastlink;
 	    $Theme->SetUpLink($uplink)     if $uplink;
@@ -401,43 +425,45 @@ sub Get_ServerDefaults
 	# this block generally says:
 	# "If we find a directive, set that variable to whatever the tag equals..."
 
-        ( /\@LOCALCONFIGFILE\s*=\s*(.*?);/s )    && ($shortlocal = $1);
+        ( /\@LOCALCONFIGFILE\s*=\s*(.*?[^\\]);/s )    && ($shortlocal = $1);
 	
-	( /\@BLANKGIF\s*=\s*(.*?);/s )           && ($blankgif = $1);
-	( /\@NAVBAR\s*=\s*(.*?);/s )             && ($usenavbar = $1);
-	( /\@NEXTLINK\s*?=\s*?(.*?);/s )         && ($nextlink = $1);
-	( /\@LASTLINK\s*?=\s*?(.*?);/s )         && ($lastlink = $1);
-	( /\@UPLINK\s*?=\s*?(.*?);/s )           && ($uplink  = $1);
+	( /\@BLANKGIF\s*=\s*(.*?[^\\]);/s )           && ($blankgif = $1);
+	( /\@NAVBAR\s*=\s*(.*?[^\\]);/s )             && ($usenavbar = $1);
+	( /\@NEXTLINK\s*?=\s*?(.*?[^\\]);/s )         && ($nextlink = $1);
+	( /\@LASTLINK\s*?=\s*?(.*?[^\\]);/s )         && ($lastlink = $1);
+	( /\@UPLINK\s*?=\s*?(.*?[^\\]);/s )           && ($uplink  = $1);
 	
-	( /\@TOPBAR\s*=\s*(.*?);/s )             && ($topbar = $1);
-	( /\@BOTTOMBAR\s*=\s*(.*?);/s )          && ($bottombar = $1);
-	( /\@TOPBOTTOMLINKS\s*=\s*(.*?);/s)      && (@topbottomlinks = split(',',$1));
+	( /\@TOPBAR\s*=\s*(.*?[^\\]);/s )             && ($topbar = $1);
+	( /\@BOTTOMBAR\s*=\s*(.*?[^\\]);/s )          && ($bottombar = $1);
+	( /\@TOPBOTTOMLINKS\s*=\s*(.*?[^\\]);/s)      && (@topbottomlinks = split(',',$1));
 
-	( /\@ALLOWBGCOLOR\s*?=\s*?(.*?);/s )     && ($1) && ($allowBGCOLOR = $1);
-	( /\@ALLOWBGPICTURE\s*?=\s*?(.*?);/s )   && ($1) && ($allowbgpicture = $1);
-	( /\@ALLOWBODYMOD\s*?=\s*?(.*?);/s )     && ($1) && ($allowbodymod = $1);
+	( /\@ALLOWBGCOLOR\s*?=\s*?(.*?[^\\]);/s )     && ($1) && ($allowBGCOLOR = $1);
+	( /\@ALLOWBGPICTURE\s*?=\s*?(.*?[^\\]);/s )   && ($1) && ($allowbgpicture = $1);
+	( /\@ALLOWBODYMOD\s*?=\s*?(.*?[^\\]);/s )     && ($1) && ($allowbodymod = $1);
 	
-	( /\@BGCOLOR\s*=\s*(.*?);/s )            && ($BGCOLOR = $1);	 
-	( /\@BGPICTURE\s*=\s*(.*?);/s )          && ($bgpicture = $1);
-	( /\@ALINK\s*=\s*(.*?);/s )              && ($alink = $1);
-	( /\@LINK\s*=\s*(.*?);/s )               && ($link = $1);
-	( /\@TEXT\s*=\s*(.*?);/s )               && ($text = $1);
-	( /\@VLINK\s*=\s*(.*?);/s )              && ($vlink = $1);
+	( /\@BGCOLOR\s*=\s*(.*?[^\\]);/s )            && ($BGCOLOR = $1);	 
+	( /\@BGPICTURE\s*=\s*(.*?[^\\]);/s )          && ($bgpicture = $1);
+	( /\@ALINK\s*=\s*(.*?[^\\]);/s )              && ($alink = $1);
+	( /\@LINK\s*=\s*(.*?[^\\]);/s )               && ($link = $1);
+	( /\@TEXT\s*=\s*(.*?[^\\]);/s )               && ($text = $1);
+	( /\@VLINK\s*=\s*(.*?[^\\]);/s )              && ($vlink = $1);
 	
 	
-	( /\@NEXTLINK\s*=\s*(.*?);/s )           && ($nextlink = $1);  
-	( /\@ALLOWSIDEBARTOGGLE\s*=\s*(.*?);/s ) && ($allowsidebartoggle = $1);
-	( /\@ALLOWNOSIDEBAR\s*=\s*(.*?);/s )     && ($allowsidebartoggle = $1);
-	( /\@NOSIDEBAR\s*?=\s*?(.*?);/s)         && ($1) && ($nosidebar = $1);
-	( /\@INFO\s*?=\s*?(.*?);/s )             && (@infolinks = split(',',$1));	   
-	( /\@ALLOWSIDEBARMOD\s*?=\s*?(.*?);/s)   && ($1) && ($allowsidebarmod = $1);
-	( /\@SIDEBARTOP\s*?=\s*?(.*?);/s )       && ($sidebartop = $1);
-	( /\@SIDEBARMENUTITLE\s*?=\s*?(.*?);/s ) && ($sidebarmenutitle = $1);
-	( /\@SIDEBARMENULINKS\s*?=\s*?(.*?);/s ) && (@sidebarmenulinks = split(',',$1));
-	( /\@SIDEBARSEARCHBOX\s*?=\s*?(.*?);/s ) && ($1) && ($sidebarsearchbox = $1);
-	( /\@SIDEBARCOLOR\s*?=\s*?(.*?);/s )     && ($sidebarcolor = $1);
-	( /\@SEARCHTEMPLATE\s*?=\s*?(.*?);/s )   && ($searchtemplate = $1);
-	( /\@MORELINKSTITLE\s*?=\s*?(.*?);/s )   && ($morelinkstitle = $1);
+	( /\@NEXTLINK\s*=\s*(.*?[^\\]);/s )           && ($nextlink = $1);  
+	( /\@ALLOWSIDEBARTOGGLE\s*=\s*(.*?[^\\]);/s ) && ($allowsidebartoggle = $1);
+	( /\@ALLOWNOSIDEBAR\s*=\s*(.*?[^\\]);/s )     && ($allowsidebartoggle = $1);
+	( /\@NOSIDEBAR\s*?=\s*?(.*?[^\\]);/s)         && ($1) && ($nosidebar = $1);
+	( /\@INFO\s*?=\s*?(.*?[^\\]);/s )             && (@infolinks = split(',',$1));	   
+	( /\@ALLOWSIDEBARMOD\s*?=\s*?(.*?[^\\]);/s)   && ($1) && ($allowsidebarmod = $1);
+	( /\@NOSIDEBAREXTRAS\s*?=\s*?(.*?[^\\]);/s)   && ($nosidebarextras = $1);
+	( /\@SIDEBARTOP\s*?=\s*?(.*?[^\\]);/s )       && ($sidebartop = $1);
+	( /\@SIDEBARMENUTITLE\s*?=\s*?(.*?[^\\]);/s ) && ($sidebarmenutitle = $1);
+	( /\@SIDEBARMENULINKS\s*?=\s*?(.*?[^\\]);/s ) && (@sidebarmenulinks = split(',',$1));
+	( /\@SIDEBARSEARCHBOX\s*?=\s*?(.*?[^\\]);/s ) && ($1) && ($sidebarsearchbox = $1);
+	( /\@SIDEBARCOLOR\s*?=\s*?(.*?[^\\]);/s )     && ($sidebarcolor = $1);
+	( /\@SIDEBARWIDTH\s*?=\s*?(.*?[^\\]);/s )     && ($sidebarwidth = $1);
+	( /\@SEARCHTEMPLATE\s*?=\s*?(.*?[^\\]);/s )   && ($searchtemplate = $1);
+	( /\@MORELINKSTITLE\s*?=\s*?(.*?[^\\]);/s )   && ($morelinkstitle = $1);
 
     }
     close CONFIG;
@@ -465,45 +491,47 @@ sub Get_LocalDefaults
     while (<CONFIG>)
       {
 	
-	( /\@NAVBAR\s*=\s*(.*?);/s )             && ($usenavbar = $1);
-	( /\@NEXTLINK\s*?=\s*?(.*?);/s )         && ($nextlink = $1);
-	( /\@LASTLINK\s*?=\s*?(.*?);/s )         && ($lastlink = $1);
-	( /\@UPLINK\s*?=\s*?(.*?);/s )           && ($uplink  = $1);
-	( /\@INFO\s*?=\s*?(.*?);/s )             && (@infolinks = split(',',$1));
+	( /\@NAVBAR\s*=\s*(.*?[^\\]);/s )             && ($usenavbar = $1);
+	( /\@NEXTLINK\s*?=\s*?(.*?[^\\]);/s )         && ($nextlink = $1);
+	( /\@LASTLINK\s*?=\s*?(.*?[^\\]);/s )         && ($lastlink = $1);
+	( /\@UPLINK\s*?=\s*?(.*?[^\\]);/s )           && ($uplink  = $1);
+	( /\@INFO\s*?=\s*?(.*?[^\\]);/s )             && (@infolinks = split(',',$1));
 	
-	( /\@TOPBAR\s*=\s*(.*?);/s )             && ($topbar = $1);
-	( /\@BOTTOMBAR\s*=\s*(.*?);/s )          && ($bottombar = $1);
-	( /\@TOPBOTTOMLINKS\s*=\s*(.*?);/s)      && (@topbottomlinks = split(',',$1));
+	( /\@TOPBAR\s*=\s*(.*?[^\\]);/s )             && ($topbar = $1);
+	( /\@BOTTOMBAR\s*=\s*(.*?[^\\]);/s )          && ($bottombar = $1);
+	( /\@TOPBOTTOMLINKS\s*=\s*(.*?[^\\]);/s)      && (@topbottomlinks = split(',',$1));
 
 	# these next two are left in so old pages won't break.  Actually, it's not
 	# necessarily a bad thing to allow this like this anyhow.....  
 	
-	($allowBGCOLOR)       && ( /\@BGCOLOR\s*=\s*(.*?);/s )     && ($BGCOLOR = $1);
-	($allowbgpicture)     && ( /\@BGPICTURE\s*=\s*(.*?);/s )   && ($bgpicture = $1);
+	($allowBGCOLOR)       && ( /\@BGCOLOR\s*=\s*(.*?[^\\]);/s )     && ($BGCOLOR = $1);
+	($allowbgpicture)     && ( /\@BGPICTURE\s*=\s*(.*?[^\\]);/s )   && ($bgpicture = $1);
 	
-        ($allowsidebartoggle) && ( /\@NOSIDEBAR\s*?=\s*?(.*?);/s ) && ($1) && ($nosidebar = $1);
+        ($allowsidebartoggle) && ( /\@NOSIDEBAR\s*?=\s*?(.*?[^\\]);/s ) && ($1) && ($nosidebar = $1);
 	
 	if ($allowbodymod)    # here is where we do all of our body modification if allowed
 	  {
-	    ( /\@BGCOLOR\s*=\s*(.*?);/s )   && ($BGCOLOR = $1);
-	    ( /\@BGPICTURE\s*=\s*(.*?);/s ) && ($bgpicture = $1);
-	    ( /\@ALINK\s*=\s*(.*?);/s )     && ($alink = $1);
-	    ( /\@LINK\s*=\s*(.*?);/s )      && ($link = $1);
-	    ( /\@TEXT\s*=\s*(.*?);/s )      && ($text = $1);
-	    ( /\@VLINK\s*=\s*(.*?);/s )     && ($vlink = $1);
+	    ( /\@BGCOLOR\s*=\s*(.*?[^\\]);/s )   && ($BGCOLOR = $1);
+	    ( /\@BGPICTURE\s*=\s*(.*?[^\\]);/s ) && ($bgpicture = $1);
+	    ( /\@ALINK\s*=\s*(.*?[^\\]);/s )     && ($alink = $1);
+	    ( /\@LINK\s*=\s*(.*?[^\\]);/s )      && ($link = $1);
+	    ( /\@TEXT\s*=\s*(.*?[^\\]);/s )      && ($text = $1);
+	    ( /\@VLINK\s*=\s*(.*?[^\\]);/s )     && ($vlink = $1);
 	  }
 	
 	if ($allowsidebarmod)
 	  # if users are allowed to change the sidebar, then we'll go ahead and read in the changes
 	  # that the users specify in their local configuration files.
 	  {
-	    ( /\@SIDEBARTOP\s*=\s*(.*?);/s )       && ($sidebartop = $1);
-	    ( /\@SIDEBARMENUTITLE\s*=\s*(.*?);/s ) && ($sidebarmenutitle = $1);
-	    ( /\@SIDEBARMENULINKS\s*=\s*(.*?);/s ) && (@sidebarmenulinks = split(',',$1));
-	    ( /\@SIDEBARSEARCHBOX\s*=\s*(.*?);/s ) && ($sidebarsearchbox = $1);	
-	    ( /\@SEARCHTEMPLATE\s*=\s*(.*?);/s )   && ($searchtemplate = $1);
-	    ( /\@SIDEBARCOLOR\s*=\s*(.*?);/s )     && ($sidebarcolor = $1);
-	    ( /\@MORELINKSTITLE\s*=\s*(.*?);/s )   && ($morelinkstitle = $1);
+	    ( /\@SIDEBARTOP\s*=\s*(.*?[^\\]);/s )       && ($sidebartop = $1);
+	    ( /\@SIDEBARMENUTITLE\s*=\s*(.*?[^\\]);/s ) && ($sidebarmenutitle = $1);
+	    ( /\@SIDEBARMENULINKS\s*=\s*(.*?[^\\]);/s ) && (@sidebarmenulinks = split(',',$1));
+	    ( /\@SIDEBARSEARCHBOX\s*=\s*(.*?[^\\]);/s ) && ($sidebarsearchbox = $1);	
+	    ( /\@SEARCHTEMPLATE\s*=\s*(.*?[^\\]);/s )   && ($searchtemplate = $1);
+	    ( /\@SIDEBARCOLOR\s*=\s*(.*?[^\\]);/s )     && ($sidebarcolor = $1);
+	    ( /\@SIDEBARWIDTH\s*=\s*(.*?[^\\]);/s )     && ($sidebarwidth = $1);
+	    ( /\@MORELINKSTITLE\s*=\s*(.*?[^\\]);/s )   && ($morelinkstitle = $1);
+	    ( /\@NOSIDEBAREXTRAS\s*=\s*(.*?[^\\]);/s )  && ($nosidebarextras = $1);
 	  }
 	
       }
@@ -520,6 +548,40 @@ sub Get_LocalDefaults
 sub MakeBody
   {
     
+    # First, we have to clean up the variables.  Since we've started escaping out
+    # semicolons, we'll have to replace everything that looks like \; with ;
+
+    $BGCOLOR      =~ s/\\;/;/g;
+    $bgpicture    =~ s/\\;/;/g;
+    $alink        =~ s/\\;/;/g;
+    $link         =~ s/\\;/;/g;
+    $text         =~ s/\\;/;/g;
+    $vlink        =~ s/\\;/;/g;
+    $sidebarcolor =~ s/\\;/;/g;
+    $sidebarwidth =~ s/\\;/;/g;
+    $blankgif     =~ s/\\;/;/g;
+
+    my $marker;
+    for ($marker=0; $marker <= $#infolinks; $marker++)
+      {
+	$infolinks[$marker] =~ s/\\;/;/g;
+      }
+
+    $sidebartop      =~ s/\\;/;/g;
+    $nosidebarextras =~ s/\\;/;/g;
+    $searchtemplate  =~ s/\\;/;/g;
+   
+    for ($marker = 0; $marker <= $#sidebarmenulinks; $marker++)
+      {
+	$sidebarmenulinks[$marker] =~ s/\\;/;/g;
+      }
+
+    $sidebarmenutitle =~ s/\\;/;/g;
+    $morelinkstitle   =~ s/\\;/;/g;
+
+    # Ok, now we have cleaned up all the escaped semicolons.  It's time to feed these to
+    # our module and have fun.
+
 
     $Theme->SetBGColor($BGCOLOR)                    if ($BGCOLOR);
     $Theme->SetBGPicture($bgpicture)                if ($bgpicture);
@@ -529,9 +591,11 @@ sub MakeBody
     $Theme->SetVLink($vlink)                        if ($vlink);
 
     $Theme->SetSideBarColor($sidebarcolor)          if ($sidebarcolor);
+    $Theme->SetSideBarWidth($sidebarwidth)          if ($sidebarwidth);
     $Theme->SetBlankGif($blankgif)                  if ($blankgif);
     $Theme->SetInfoLinks(\@infolinks)               if (@infolinks);
     $Theme->SetSideBarTop($sidebartop)              if ($sidebartop);
+    $Theme->SetNoSideBarExtras($nosidebarextras)    if ($nosidebarextras);
 
     $Theme->SetSideBarSearchBox($sidebarsearchbox);
     $Theme->SetSearchTemplate($searchtemplate)      if ($searchtemplate);
@@ -605,7 +669,7 @@ Within the httpd.conf or other apache configuration file:
 This module requires the Apache server, available from
 http://www.apache.org; the Apache B<mod_perl> module, which is
 available from http://perl.apache.org, and the B<module
-HTML::WWWTheme>, by Chad Hogan (version 1.03 or greater) which may
+HTML::WWWTheme>, by Chad Hogan (version 1.06 or greater) which may
 be found at CPAN.
 
 =head1 DESCRIPTION
@@ -690,7 +754,15 @@ settings and the server settings persist.
 Directives consist of a series of tags within a text file, or within an html
 comment block before the <BODY> tag. Valid directive tags are always
 terminated with a semicolon. For tags that accept lists as values, elements
-are separated by commas.
+are separated by commas.  Semicolons may be escaped within a tag.  Any 
+semicolon preceded by a backslash will be considered text, and will not terminate
+the directive.  The final text will have the escaped semicolon replaced with
+a bare semicolon.  
+
+ @DIRECTIVE=Some string of text\; semicolons are escaped.;
+
+The above directive would set a value of "Some string of text; semicolons 
+are escaped."
 
 =item @ALINK
 
@@ -899,6 +971,14 @@ configuration is subject to the server directive @ALLOWSIDEBARMOD. Here
 is an example:
 
  @SIDEBARCOLOR=#CCCCCC;
+
+=item @SIDEBARWIDTH
+
+HTML and local configuration subject to server configuration.
+This tag is used to set the width of the sidebar in pixels.  Local
+and HTML configuration is subject to the server directive @ALLOWSIDEBARMOD.
+
+ @SIDEBARWIDTH=150;
 
 =item @SEARCHTEMPLATE
 

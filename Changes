@@ -29,3 +29,15 @@ Revision history for Perl extension SetWWWTheme.
           uses GET methods rather than the ridiculous
 	  virtual directory method I had cooked up
 	  in 1.04.  :) 
+
+1.06  Thurs Mar 23 22:02:42 2000
+    - added support for escaped semi-colons in directives
+      (eg @MORELINKSTITLE=More Links\;; goes to "More Links;"
+      This was added at the request of the JAC for embedding 
+      Javascript.  Use it wisely.  Note that the escaping is
+      simple-minded..... You can't escape escapes, for example.
+    - added support for @SIDEBARWIDTH directive.  The sidebar
+      width was previously set to 150 pixels.
+    - added support for @NOSIDEBAREXTRAS directive.  This turns
+      off all but the @SIDEBARMENULINKS (ie no search box,
+      stuff like that).   
