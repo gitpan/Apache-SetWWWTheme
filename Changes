@@ -18,3 +18,8 @@ Revision history for Perl extension SetWWWTheme.
 	- fixed bug in auto HTML cleaning routine
 	  (ie that bit that puts in missing </HEAD> tags, 
 	   etc.)
+
+1.04  Mon Feb 14 16:05:11 2000
+	- addes "printable" support to allow servers
+	  to send out un-themed pages without subverting
+	  the entire theming process.

@@ -95,8 +95,29 @@ them all.  You'll also need to change the CONFIG_FILE value from
 "/WWW/Configuration" to point to the name of the configuration file for
 that particular location.  It can be whatever (and wherever)  you want it
 to be, but the path must be a path on the real filesystem (ie not
-relative to the webserver document root).  We'll discuss the
-Configuration file next....
+relative to the webserver document root). 
+
+If you would like to allow browsers access to printable versions of the
+pages, then create an alias and a location block to allow this.  Make sure
+you name the alias and location directives the same as the name you gave
+to the PRINTABLE_ROOT variable.  In this case, we've used "/printable".
+
+Alias /printable "/documentroot/somewhere"
+
+<Location /printable>
+	SetHandler perl-script
+	PerlHandler Apache::SetWWWTheme
+        PerlSetVar PRINTABLE 1
+ </Location>	
+
+You *must* set the PRINTABLE variable to something that perl will evaluate
+as true.  1 is safe and recommended.  This puts the module into a very
+specific mode -- all the module does is strip out <A HREF..> and </A> links
+and display the page.  This allows browsers to produce a simple, unthemed
+page suitable for printing.  The links are stripped out to discourage 
+people from consistently browsing within the "/printable" directory, which
+is simply an alias to the "somewhere" document tree as a whole.  
+
 
 7) Copy the templates from the SetWWWTheme/templates directory to their
 respective locations.  I recommend doing this:

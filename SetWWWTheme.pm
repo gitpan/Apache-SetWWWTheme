@@ -31,7 +31,7 @@ use Apache::Constants ':common';
 use Apache::File ();
 use HTML::WWWTheme;
 
-$VERSION = '1.03';
+$VERSION = '1.04';
 
 ##################################################
 my $r;                                           # request object variable
@@ -66,6 +66,10 @@ my $searchtemplate;                              # a search template
 my $topbar;
 my $bottombar;
 my @topbottomlinks;
+my $filename;
+my $printable;                                   #
+my $printableroot;                               #
+my $printableuri;
 ##################################################
 
 sub handler
@@ -79,7 +83,7 @@ sub handler
                                                  # we only want to deal with html files
     return DECLINED unless $content_type eq 'text/html';
 
-    my $filename = $r->filename;                 # get the filename we're looking for
+    $filename = $r->filename;                 # get the filename we're looking for
    
     unless (-e $r->finfo)                        # Apache does a stat() and puts the results in finfo,
                                                  # this is faster than testing the filename.
@@ -131,11 +135,27 @@ sub handler
     undef $topbar;
     undef $bottombar;
     undef @topbottomlinks;
+    undef $printable;
+    undef $printableuri;
 
     # grabs the config file for the configuration.  This is all the non-user
     # stuff, and can only be changed by the web maintainers/admin people.
-    
-    $serverconfig = $r->dir_config->{'CONFIG_FILE'};  
+
+
+    # first we'll see if maybe we can skip this whole module.
+    # if we have a PRINTABLE flag set, we'll skip this stuff.		
+    $printable = $r->dir_config->{'PRINTABLE'};
+    $printable && MakePrintable() && return OK;
+
+    # failing that, we'll get configuration stuff, and construct our
+    # printable uri
+
+    $printableroot = $r->dir_config->{'PRINTABLE_ROOT'};
+    $printableuri  = $printableroot . $r->uri;
+
+    $Theme->SetPrintableName($printableuri) if ($printableuri);
+
+    $serverconfig  = $r->dir_config->{'CONFIG_FILE'};  
     $r->log_error("Invalid server configuration file") unless ($serverconfig);
     
     # Now we'll set up our defaults from the various spots.  First we'll go
@@ -330,7 +350,6 @@ sub handler
 	  {
 	    $Theme->SetTopBottomLinks(\@topbottomlinks) if (@topbottomlinks);
 	    $newendbody .= $Theme->MakeTopBottomBar();
-	    $r->log_error($Theme->MakeTopBottomBar());
 	  }
 	
 	$newendbody .= MakeEndBody();             # Them we make the closing endbody.  
@@ -341,7 +360,7 @@ sub handler
 	
       }
     return OK;
-}
+} 
 
 #############################################################################
 
@@ -489,8 +508,7 @@ sub Get_LocalDefaults
 # that we've collected from the server, the file, and the HTML.  
 
 sub MakeBody
-{
- 
+  {
     $Theme->SetBGColor($BGCOLOR)                    if ($BGCOLOR);
     $Theme->SetBGPicture($bgpicture)                if ($bgpicture);
     $Theme->SetALink($alink)                        if ($alink);
@@ -514,6 +532,40 @@ sub MakeBody
     
 }
 
+
+###############################################
+#
+# This sub makes a printable version of a page.  It strips out the 
+# HTML link stuff so that people don't surf around in the 
+# printable versions of pages, thus subverting the entire theme stuff.
+
+sub MakePrintable
+{
+  my $fh;                                       # grab a filehandle
+  unless ($fh = Apache::File->new($filename))
+    {
+      $r->log_error("Couldn't open $filename for reading: $!");
+      return SERVER_ERROR;
+    }
+  
+  $r->register_cleanup(sub {close $fh});        # register a cleanup for the filehandle
+  
+  local $/ = undef;                             # Read in the whole schmear.
+  
+  while (<$fh>)
+    {
+      s|<A\W+HREF[^>]+>||ig;                         # wipes out our links
+      s|</A>||ig;
+      
+      $r->print($_);                            # dumps the results to apache
+    }	
+  
+  return 1;                                    # and tell it we finished.
+  
+}	
+
+
+
 1;
 
 # May a thousand locusts descend upon pod.
@@ -530,6 +582,16 @@ Within the httpd.conf or other apache configuration file:
  SetHandler perl-script
  PerlHandler Apache::SetWWWTheme
  PerlSetVar CONFIG_FILE /WWWroot/configfile
+ </Location>
+
+ and 
+
+ Alias /printable/ "/WWW/"
+
+ <Location /printable>
+ SetHandler perl-script
+ PerlHandler Apache::SetWWWTheme
+ PerlSetVar PRINTABLE 1
  </Location>
 
 =head1 REQUIREMENTS
@@ -572,7 +634,7 @@ name of the configuration file. Here is an example:
 
  <Location />
  SetHandler perl-script
- PerlHandler Apache::SetTheme
+ PerlHandler Apache::SetWWWTheme
  PerlSetVar CONFIG_FILE /WWW/ServerConfig
  </Location>
 
@@ -581,6 +643,25 @@ CONFIG_FILE variable is used by the module to look for the file that
 controls the defaults for the entire site. Please note that CONFIG_FILE
 takes the full path to the file name on the file-system -- do not list this
 file relative to the document root.
+
+To create a printable subdirectory, use something like:
+
+ alias /printable/ "/WWW/"
+
+ <Location /printable>
+ SetHandler perl-script
+ PerlHandler Apache::SetWWWTheme
+ PerlSetVar PRINTABLE 1
+ </Location>
+
+Notice the PerlSetVar PRINTABLE 1.  This tells the module to dump out a 
+specially modified version of the page.  It produces the page as it 
+is on the server's filesystem, with no theme modifications.  It makes one
+crucial change, however -- it strips out all <A HREF...> and </A> tags. This
+is done to allow web administrators to allow the browsers to produce a 
+printable version of a web page without subverting the entire theme process.
+If this link stripping was not done, people may start browsing the printable
+tree, without the sidebars and other theme stuff.
 
 The server-level configuration is primarily to set defaults. It is also to
 set restrictions on the configurability of the rest of the site. The
