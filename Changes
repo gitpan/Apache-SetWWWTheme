@@ -9,3 +9,7 @@ Revision history for Perl extension SetWWWTheme.
 1.01  Sun Jan 30 22:32:02 2000
 	- added support for @MORELINKSTITLE directive
 	- general cleanups
+
+1.02  Mon Jan 31 13:14:11 2000
+	- added support for @TOPBAR & @BOTTOMBAR
+	  at the request of the JAC

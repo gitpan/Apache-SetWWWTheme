@@ -81,6 +81,14 @@
 @UPLINK=<a href="http://www.yahoo.ca">Yahoo Canada</a>;
 @LASTLINK=<a href="http://www.metacrawler.com">Metacrawler</a>;
 
+# here we turn off the top and bottom navigation bars, because
+# they're usually annoying.  I'll set a default link just in 
+# case someone sets it but doesn't change the link.
+
+@TOPBAR=0;
+@BOTTOMBAR=0;
+@TOPBOTTOMLINKS=<A HREF="/">Home</a>;
+
 # This sets the color of the alink/vlink/link in the HTML BODY tag
 # Set them to something sensible and then reactivate them if you
 # want to use them.

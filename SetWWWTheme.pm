@@ -31,7 +31,7 @@ use Apache::Constants ':common';
 use Apache::File ();
 use HTML::WWWTheme;
 
-$VERSION = '1.01';
+$VERSION = '1.02';
 
 ##################################################
 my $r;                                           # request object variable
@@ -63,6 +63,9 @@ my $morelinkstitle;
 my $sidebarsearchbox;                            #
 my $sidebarcolor;                                # 
 my $searchtemplate;                              # a search template
+my $topbar;
+my $bottombar;
+my @topbottomlinks;
 ##################################################
 
 sub handler
@@ -125,6 +128,9 @@ sub handler
     undef $morelinkstitle;
     undef $sidebarcolor;
     undef $searchtemplate;
+    undef $topbar;
+    undef $bottombar;
+    undef @topbottomlinks;
 
     # grabs the config file for the configuration.  This is all the non-user
     # stuff, and can only be changed by the web maintainers/admin people.
@@ -173,15 +179,18 @@ sub handler
 	# this block looks through the HTML to find our comment block that contains directives
 	# for controlling the "Look and Feel" of the pages. 
 	
-	(/\@NAVBAR\s*=\s*(\S+?);/) && ($usenavbar = $1);
-	 
+	(/\@NAVBAR\s*=\s*(\S+?);/)    && ($usenavbar = $1);
+	(/\@TOPBAR\s*=\s*(\S+?);/)    && ($topbar = $1);
+	(/\@BOTTOMBAR\s*=\s*(\S+?);/) && ($bottombar = $1);
+
 	# this is the part where we let the HTML override the server-set defaults
 	# A few things we may or may not be able to change (like the BGCOLOR)
 
-	( /\@NEXTLINK\s*?=\s*?(.*?);/s ) && ($nextlink  = $1);
-	( /\@LASTLINK\s*?=\s*?(.*?);/s ) && ($lastlink  = $1);	
-	( /\@UPLINK\s*?=\s*?(.*?);/s   ) && ($uplink    = $1);
-	( /\@INFO\s*?=\s*?(.*?);/s     ) && (@infolinks = split(',',$1));
+	( /\@NEXTLINK\s*?=\s*?(.*?);/s )       && ($nextlink  = $1);
+	( /\@LASTLINK\s*?=\s*?(.*?);/s )       && ($lastlink  = $1);	
+	( /\@UPLINK\s*?=\s*?(.*?);/s   )       && ($uplink    = $1);
+	( /\@INFO\s*?=\s*?(.*?);/s     )       && (@infolinks = split(',',$1));
+	( /\@TOPBOTTOMLINKS\s*?=\s*?(.*?);/s ) && (@topbottomlinks = split(',',$1));
 
 	($allowsidebartoggle) && ( /\@NOSIDEBAR\s*?=\s*?(.*?);/s) && ($nosidebar = $1);
 
@@ -283,11 +292,17 @@ sub handler
 
 	$newbody = $copyrightnotice . $newbody;
 
+	if ($topbar)                                    # if we have a top links bar, we'll put it in
+	  {
+	    $Theme->SetTopBottomLinks(\@topbottomlinks) if (@topbottomlinks);
+	    $newbody .= $Theme->MakeTopBottomBar();
+	  }
+
 	if ($usenavbar)                                      # This puts the top/bottom nav bars into the
 	  {                                                  # newly-created HTML
-	    $Theme->{nextlink} = $nextlink;
-	    $Theme->{lastlink} = $lastlink;
-	    $Theme->{uplink}   = $uplink;
+	    $Theme->SetNextLink($nextlink) if $nextlink;
+	    $Theme->SetLastLink($lastlink) if $lastlink;
+	    $Theme->SetUpLink($uplink)     if $uplink;
 	    $newbody .= $Theme->MakeNavBar();
 	  }
 	
@@ -298,6 +313,13 @@ sub handler
 	                                          # if we're using top/bottom navbars, we'll tack on the
                                                   # bottom navbar piece.
 	$newendbody .= $Theme->MakeNavBar() if ($usenavbar);
+
+	if ($bottombar)                           # now we stick in the bottom bar, if required
+	  {
+	    $Theme->SetTopBottomLinks(\@topbottomlinks) if (@topbottomlinks);
+	    $newendbody .= $Theme->MakeTopBottomBar();
+	    $r->log_error($Theme->MakeTopBottomBar());
+	  }
 	
 	$newendbody .= MakeEndBody();             # Them we make the closing endbody.  
 	
@@ -346,6 +368,10 @@ sub Get_ServerDefaults
 	( /\@LASTLINK\s*?=\s*?(.*?);/s )         && ($lastlink = $1);
 	( /\@UPLINK\s*?=\s*?(.*?);/s )           && ($uplink  = $1);
 	
+	( /\@TOPBAR\s*=\s*(.*?);/s )             && ($topbar = $1);
+	( /\@BOTTOMBAR\s*=\s*(.*?);/s )          && ($bottombar = $1);
+	( /\@TOPBOTTOMLINKS\s*=\s*(.*?);/s)      && (@topbottomlinks = split(',',$1));
+
 	( /\@ALLOWBGCOLOR\s*?=\s*?(.*?);/s )     && ($1) && ($allowBGCOLOR = $1);
 	( /\@ALLOWBGPICTURE\s*?=\s*?(.*?);/s )   && ($1) && ($allowbgpicture = $1);
 	( /\@ALLOWBODYMOD\s*?=\s*?(.*?);/s )     && ($1) && ($allowbodymod = $1);
@@ -385,7 +411,7 @@ sub Get_ServerDefaults
 # in the HTML comment block before the <BODY> tag, then these defaults will
 # be used.  If the local config file does not cover something, this module
 # will use the defaults set in the server config.  This configuration is subject
-# to the rules set by the maintainers (eg. Can users set teh BGCOLOR?)
+# to the rules set by the maintainers (eg. Can users set the BGCOLOR?)
 
 sub Get_LocalDefaults
   {
@@ -404,6 +430,10 @@ sub Get_LocalDefaults
 	( /\@UPLINK\s*?=\s*?(.*?);/s )           && ($uplink  = $1);
 	( /\@INFO\s*?=\s*?(.*?);/s )             && (@infolinks = split(',',$1));
 	
+	( /\@TOPBAR\s*=\s*(.*?);/s )             && ($topbar = $1);
+	( /\@BOTTOMBAR\s*=\s*(.*?);/s )          && ($bottombar = $1);
+	( /\@TOPBOTTOMLINKS\s*=\s*(.*?);/s)      && (@topbottomlinks = split(',',$1));
+
 	# these next two are left in so old pages won't break.  Actually, it's not
 	# necessarily a bad thing to allow this like this anyhow.....  
 	
@@ -696,6 +726,16 @@ would be:
 
  @BLANKGIF=/images/blank.gif;
 
+=item @BOTTOMBAR
+
+Valid in HTML, local configuration, and server configuration.  This
+tag is used to toggle a navigation bar at the bottom of the page.  This
+bottom navigation bar contains the links defined with the @TOPBOTTOMLINKS
+directive.  If @BOTTOMBAR is set to something non-zero, it will appear
+in the document.
+
+ @BOTTOMBAR=1;
+
 =item @INFO
 
 Valid in HTML, local configuration, and server configuration
@@ -840,7 +880,7 @@ effective in local and HTML configuration if and only if the server
 configuration has set @ALLOWSIDEBARMOD to a non-zero value. Here is an
 example of its use:
 
- @SIDEBARTOP=<A HREF="/>Joint Astronomy Centre</a>;
+ @SIDEBARTOP=<A HREF="/">Joint Astronomy Centre</a>;
 
 =item @TEXT
 
@@ -851,6 +891,26 @@ tag. If @ALLOWBODYMOD is set to a non-zero value, @TEXT will set this
 attribute in the page. Here is an example:
 
  @TEXT=#000000;
+
+=item @TOPBAR
+
+This tag is valid in HTML, local, and server configuration.  It is
+used to toggle the existence of a top navigation bar that contains
+the links specified in the @TOPBOTTOMLINKS directive.  It is similar
+to the @BOTTOMBAR directive, except it works at the top of the page.
+Setting @TOPBAR to a non-zero value will turn this navigation tool
+on in the final produced document.
+
+ @TOPBAR=1;
+
+=item @TOPBOTTOMLINKS
+
+This is valid in HTML, local, and server configuration.  It is a 
+comma-separated list of navigation links that will be place in the
+top and bottom bars as toggled by the @TOPBAR and @BOTTOMBAR 
+directives.  
+
+ @TOPBOTTOMLINKS=<A HREF="/">JAC</a>, <A HREF="/JCMT">JCMT</a>;
 
 =item @VLINK
 
