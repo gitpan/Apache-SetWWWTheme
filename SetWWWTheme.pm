@@ -31,7 +31,7 @@ use Apache::Constants ':common';
 use Apache::File ();
 use HTML::WWWTheme;
 
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 ##################################################
 my $r;                                           # request object variable
@@ -68,8 +68,8 @@ my $bottombar;
 my @topbottomlinks;
 my $filename;
 my $printable;                                   #
-my $printableroot;                               #
-my $printableuri;
+my $printabletag = "printable";                  # what we tack on for the QUERY_STRING GET data
+my $printableuri;                                #
 ##################################################
 
 sub handler
@@ -83,7 +83,7 @@ sub handler
                                                  # we only want to deal with html files
     return DECLINED unless $content_type eq 'text/html';
 
-    $filename = $r->filename;                 # get the filename we're looking for
+    $filename = $r->filename;                    # get the filename we're looking for
    
     unless (-e $r->finfo)                        # Apache does a stat() and puts the results in finfo,
                                                  # this is faster than testing the filename.
@@ -98,7 +98,7 @@ sub handler
 	return FORBIDDEN;
       }
 
-    $r->send_http_header;
+    $r->send_http_header; 
 
     # reset all my vars. 
     # For now, it works, and I think we're ok for namespace issues since all vars have lexical scope.
@@ -143,17 +143,26 @@ sub handler
 
 
     # first we'll see if maybe we can skip this whole module.
-    # if we have a PRINTABLE flag set, we'll skip this stuff.		
-    $printable = $r->dir_config->{'PRINTABLE'};
-    $printable && MakePrintable() && return OK;
+    # if we have a ?printable query set, we'll skip this stuff.		
+
+    $printable = ($ENV{"QUERY_STRING"} =~ /$printabletag/i);
+    $printable && MakePrintable() && return OK;  # if we have ?printable, then the whole thing stops
+                                                 # right here, because OK is returned.
 
     # failing that, we'll get configuration stuff, and construct our
-    # printable uri
+    # printable uri that we can stick into the "real" page.
+    # So, to get a printable version of http://www.somewhere.com/index.html
+    # we use http://www.somewhere.com/index.html?printable
 
-    $printableroot = $r->dir_config->{'PRINTABLE_ROOT'};
-    $printableuri  = $printableroot . $r->uri;
+    $printableuri  = $r->uri . "?$printabletag";
+    
+    # Now that we have created a usable printable URL, we'll tell HTML::WWWTheme about it.
 
     $Theme->SetPrintableName($printableuri) if ($printableuri);
+
+    # and now we grab the server configuration as usual.
+    #
+    # We start by getting our config_file as set out in CONFIG_FILE
 
     $serverconfig  = $r->dir_config->{'CONFIG_FILE'};  
     $r->log_error("Invalid server configuration file") unless ($serverconfig);
@@ -183,7 +192,7 @@ sub handler
 
     # Now the usual Apache module stuff.
 
-    my $fh;                                       # grab a filehandle
+    my $fh;                                       # grab a filehandle for our HTML file
     unless ($fh = Apache::File->new($filename))
       {
 	$r->log_error("Couldn't open $filename for reading: $!");
@@ -192,9 +201,9 @@ sub handler
     
     $r->register_cleanup(sub {close $fh});        # register a cleanup for the filehandle
 
-    local $/ = undef;                             # Read in the whole schmear.
+    local $/ = undef;                             # Read in the whole schmear at once.
 
-    while (<$fh>)
+    while (<$fh>)                                 # I suppose this while isn't necessary.
       {
 	# this block looks through the HTML to find our comment block that contains directives
 	# for controlling the "Look and Feel" of the pages. 
@@ -216,9 +225,10 @@ sub handler
 
 	# these next two are relics.  They are from the days before we had an "allowbodymod" directive
 	# we'll support them for a bit.  They might even be useful on their own.. we'll see.
+	# Do you have an opinion one way or another?  Email me: chogan@uvastro.phys.uvic.ca
 
-	($allowBGCOLOR)    && ( /\@BGCOLOR\s*?=\s*?(.*?);/s  ) && ($BGCOLOR = $1);
-	($allowbgpicture)  && (/\@BGPICTURE\s*?=\s*?(.*?);/s ) && ($bgpicture = $1);
+	($allowBGCOLOR)    && ( /\@BGCOLOR\s*?=\s*?(.*?);/s   ) && ($BGCOLOR = $1);
+	($allowbgpicture)  && ( /\@BGPICTURE\s*?=\s*?(.*?);/s ) && ($bgpicture = $1);
 
 	if ($allowbodymod)    # here is where we do all of our body modification if allowed
 	  {
@@ -233,7 +243,7 @@ sub handler
 	    /<BODY[^>]+?TEXT=(.*?)[\s|>]/is        && ($text = $1)      && $text      =~ s/\"//g; 
 	    /<BODY[^>]+?VLINK=(.*?)[\s|>]/is       && ($vlink = $1)     && $vlink     =~ s/\"//g; 
 
-	    # now we're using the directives in the comment tags.
+	    # now we're using the directives in the comment tags.  These override BODY settings.
 
 	    /\@BGCOLOR\s*=\s*(.*?);/s        && ($BGCOLOR = $1);
 	    /\@BGPICTURE\s*=\s*(.*?);/s      && ($bgpicture = $1);
@@ -270,7 +280,7 @@ sub handler
 	  {
 	    if (/<HTML[^>]*?>/i)                              # if there is an <HTML> tag...
 	      {
-		s|(<HTML[^>]*?>)|$1<HEAD>|i;                  # add <HEAD> afterwards
+		s|(<HTML[^>]*?>)|$1<HEAD>|i;                  # add <HEAD> afterwards.
 	      }
 	    else                                              # and if there isn't a <HTML> tag
 	      {
@@ -280,7 +290,7 @@ sub handler
 
         s|<HEAD>|<HEAD></HEAD>|i   unless (/<\/HEAD>/i);      # close with </HEAD> if we need to
 
-	s|</HEAD>|</HEAD><BODY>|i  unless (/<BODY[^>]*?/i);   # drop in a body tag if we need to
+	s|</HEAD>|</HEAD><BODY>|i  unless (/<BODY[^>]*?/i);   # drop in a <BODY> tag if we need to
 
 	$_ = "<HTML>" . $_         unless (/<HTML[^>]*?>/i);  # now put <HTML></HTML> around the
 	$_ .= "</HTML>"            unless (/<\/HTML>/i);      # entire doc if necessary
@@ -293,19 +303,19 @@ sub handler
 
 	my $newbody;
 	
-	$newbody = MakeBody() unless ($nosidebar);            # make the replacement
+	$newbody = MakeBody() unless ($nosidebar);            # make the replacement if necessary.
 
 	unless($newbody)                                      # This piece is used if we're not creating
 	  {                                                   # a sidebar.  It just recreates a normal body
                                                               # as before, except it still uses the table.
-	    $newbody  = "<BODY ";
-	    ($BGCOLOR) && ($newbody .= "BGCOLOR=\"$BGCOLOR\" ");
+	                     $newbody  = "<BODY ";
+	    ($BGCOLOR)   && ($newbody .= "BGCOLOR=\"$BGCOLOR\" ");
 	    ($bgpicture) && ($newbody .= "BACKGROUND=\"$bgpicture\" ");
-	    ($alink) && ($newbody .= "ALINK=\"$alink\" ");
-	    ($link)  && ($newbody .= "LINK=\"$link\" ");
-	    ($text)  && ($newbody .= "TEXT=\"$text\" ");
-	    ($vlink) && ($newbody .= "VLINK=\"$vlink\" ");
-	    $newbody .= "><DIV><TABLE><TR><TD>";
+	    ($alink)     && ($newbody .= "ALINK=\"$alink\" ");
+	    ($link)      && ($newbody .= "LINK=\"$link\" ");
+	    ($text)      && ($newbody .= "TEXT=\"$text\" ");
+	    ($vlink)     && ($newbody .= "VLINK=\"$vlink\" ");
+	                     $newbody .= "><DIV><TABLE><TR><TD>";
 	  }
 
 	# now we'll make up a copyright notice to insert into our page.  
@@ -509,6 +519,8 @@ sub Get_LocalDefaults
 
 sub MakeBody
   {
+    
+
     $Theme->SetBGColor($BGCOLOR)                    if ($BGCOLOR);
     $Theme->SetBGPicture($bgpicture)                if ($bgpicture);
     $Theme->SetALink($alink)                        if ($alink);
@@ -557,6 +569,10 @@ sub MakePrintable
       s|<A\W+HREF[^>]+>||ig;                         # wipes out our links
       s|</A>||ig;
       
+      my $return = $r->uri;
+
+      s|</BODY>|<A HREF=\"$return\"><H6>return...</H6></A></BODY>|ig;
+
       $r->print($_);                            # dumps the results to apache
     }	
   
@@ -584,16 +600,6 @@ Within the httpd.conf or other apache configuration file:
  PerlSetVar CONFIG_FILE /WWWroot/configfile
  </Location>
 
- and 
-
- Alias /printable/ "/WWW/"
-
- <Location /printable>
- SetHandler perl-script
- PerlHandler Apache::SetWWWTheme
- PerlSetVar PRINTABLE 1
- </Location>
-
 =head1 REQUIREMENTS
 
 This module requires the Apache server, available from
@@ -604,7 +610,7 @@ be found at CPAN.
 
 =head1 DESCRIPTION
 
-The SetTheme module provides a server-based look-and-feel configuration for
+The SetWWWTheme module provides a server-based look-and-feel configuration for
 an entire webtree. This module allows the server to introduce a common
 navigation side-bar. It also provides mechanisms to control the background
 color and background picture for a web page.
@@ -644,24 +650,10 @@ controls the defaults for the entire site. Please note that CONFIG_FILE
 takes the full path to the file name on the file-system -- do not list this
 file relative to the document root.
 
-To create a printable subdirectory, use something like:
-
- alias /printable/ "/WWW/"
-
- <Location /printable>
- SetHandler perl-script
- PerlHandler Apache::SetWWWTheme
- PerlSetVar PRINTABLE 1
- </Location>
-
-Notice the PerlSetVar PRINTABLE 1.  This tells the module to dump out a 
-specially modified version of the page.  It produces the page as it 
-is on the server's filesystem, with no theme modifications.  It makes one
-crucial change, however -- it strips out all <A HREF...> and </A> tags. This
-is done to allow web administrators to allow the browsers to produce a 
-printable version of a web page without subverting the entire theme process.
-If this link stripping was not done, people may start browsing the printable
-tree, without the sidebars and other theme stuff.
+The creation of printable versions of pages has been greatly simplified.  
+No longer is any configuration required -- the page is automatically
+generated using a GET method.  Adding "?printable" to a URI will 
+cause the page to be displayed in a printable manner, for example.
 
 The server-level configuration is primarily to set defaults. It is also to
 set restrictions on the configurability of the rest of the site. The

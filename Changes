@@ -23,3 +23,9 @@ Revision history for Perl extension SetWWWTheme.
 	- addes "printable" support to allow servers
 	  to send out un-themed pages without subverting
 	  the entire theming process.
+
+1.05  Tues Mar 21 19:01:11 2000
+	- fixed "printable" generation so that it 
+          uses GET methods rather than the ridiculous
+	  virtual directory method I had cooked up
+	  in 1.04.  :) 
